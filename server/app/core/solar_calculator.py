@@ -97,15 +97,18 @@ class SolarCalculator:
             weather_data = weather_results.get(weather_analysis, {})
             daily_irradiance = weather_data.get('daily_irradiance_kwh_m2', 3.5)  # Default fallback
             
-            # Calculate system capacity (150W/m² panel density)
-            system_capacity_kw = roof_area * 0.15
+            # Calculate system capacity (200W/m² realistic panel density for Germany)
+            system_capacity_kw = roof_area * 0.20
             
             # Apply orientation factor
             orientation_factor = self.ORIENTATION_FACTORS.get(orientation.lower(), 0.85)
             
-            # Calculate annual output
+            # Calculate annual output using ANNUAL AVERAGE irradiance (not daily peak)
+            # Convert daily irradiance to annual average (July peak ÷ 1.4 seasonal factor)
+            annual_avg_irradiance = daily_irradiance / 1.4  # Convert July peak to annual average
+            
             annual_output_kwh = (
-                daily_irradiance * 
+                annual_avg_irradiance * 
                 roof_area * 
                 self.PANEL_EFFICIENCY * 
                 self.SYSTEM_LOSSES * 
@@ -113,13 +116,17 @@ class SolarCalculator:
                 365
             )
             
-            # Calculate monthly outputs
+            # Calculate monthly outputs using seasonal pattern
             seasonal_pattern = weather_data.get('seasonal_variations', {})
             monthly_outputs = {}
             
             for month in range(1, 13):
+                # Use seasonal pattern to distribute annual production
                 monthly_factor = seasonal_pattern.get(str(month), 1.0)
-                monthly_outputs[month] = annual_output_kwh * monthly_factor / 12
+                # Normalize by average factor to ensure total = annual
+                avg_factor = sum(seasonal_pattern.values()) / 12 if seasonal_pattern else 1.0
+                normalized_factor = monthly_factor / avg_factor if avg_factor > 0 else 1.0
+                monthly_outputs[month] = annual_output_kwh * normalized_factor / 12
             
             # Find peak month
             peak_month = max(monthly_outputs.keys(), key=lambda x: monthly_outputs[x])
@@ -140,7 +147,9 @@ class SolarCalculator:
                     "orientation_factor": orientation_factor,
                     "panel_efficiency": self.PANEL_EFFICIENCY,
                     "system_losses": self.SYSTEM_LOSSES,
-                    "daily_irradiance": daily_irradiance
+                    "daily_irradiance_peak": daily_irradiance,
+                    "annual_avg_irradiance": annual_avg_irradiance,
+                    "system_capacity_calculation": f"{roof_area}m² × 0.20 = {system_capacity_kw}kW"
                 }
             }
             

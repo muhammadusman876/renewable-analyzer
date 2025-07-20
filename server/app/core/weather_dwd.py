@@ -133,21 +133,23 @@ class DWDWeatherFetcher:
         
         factors = regional_factors.get(region, regional_factors["center"])
         
-        # Enhanced monthly pattern with regional variation
+        # Enhanced monthly pattern with regional variation - CORRECTED FOR REALISM
         base_pattern = {
             1: 0.3, 2: 0.5, 3: 0.8, 4: 1.1, 5: 1.3, 6: 1.4,
             7: 1.4, 8: 1.2, 9: 1.0, 10: 0.7, 11: 0.4, 12: 0.25
         }
         
-        # Apply regional adjustments
+        # Apply realistic regional adjustments - FIXED EXCESSIVE MULTIPLIERS
         adjusted_pattern = {}
         for month, value in base_pattern.items():
-            if month in [12, 1, 2]:  # Winter months
+            if month in [12, 1, 2]:  # Winter months - reduce further
                 adjusted_pattern[month] = round(value * factors["winter_factor"], 2)
-            elif month in [6, 7, 8]:  # Summer months
-                adjusted_pattern[month] = round(value * factors["summer_factor"], 2)
-            else:  # Shoulder seasons (spring/fall)
-                adjusted_pattern[month] = round(value * (1 + factors["variation"]), 2)
+            elif month in [6, 7, 8]:  # Summer months - cap at realistic 1.5x max
+                summer_multiplier = min(factors["summer_factor"], 1.1)  # Cap at 1.1x to prevent excessive values
+                adjusted_pattern[month] = round(value * summer_multiplier, 2)
+            else:  # Shoulder seasons (spring/fall) - minimal adjustment
+                variation_factor = min(factors["variation"], 0.1)  # Cap variation at 10%
+                adjusted_pattern[month] = round(value * (1 + variation_factor), 2)
         
         return adjusted_pattern
 

@@ -103,10 +103,22 @@ class ROICalculator:
                 total_investment = 500
             
             electricity_rate = get_electricity_price()
-            annual_electricity_savings = annual_kwh * electricity_rate
-            # More realistic: only 20-30% of production is typically fed into grid for household systems
-            feed_in_percentage = 0.25  # 25% of production fed back to grid
-            feed_in_income = (annual_kwh * feed_in_percentage) * incentives["feed_in_tariff_eur_per_kwh"]
+            
+            # Realistic German household solar consumption pattern:
+            # - 40% self-consumed (saves full electricity rate)
+            # - 60% fed into grid (earns feed-in tariff)
+            self_consumption_rate = 0.40
+            feed_in_rate = 0.60
+            
+            # Calculate direct electricity savings (self-consumed portion)
+            self_consumed_kwh = annual_kwh * self_consumption_rate
+            annual_electricity_savings = self_consumed_kwh * electricity_rate
+            
+            # Calculate feed-in income (exported portion)
+            fed_in_kwh = annual_kwh * feed_in_rate
+            feed_in_income = fed_in_kwh * incentives["feed_in_tariff_eur_per_kwh"]
+            
+            # Total annual benefit
             annual_savings = annual_electricity_savings + feed_in_income
             
             if annual_savings > 0:
@@ -128,8 +140,11 @@ class ROICalculator:
                 "co2_reduction": round(co2_reduction_tons_lifetime, 1),
                 "system_capacity_kw": round(system_capacity_kw, 2),
                 "annual_kwh_adjusted": round(annual_kwh, 1),
+                "self_consumed_kwh": round(self_consumed_kwh, 1),
+                "fed_in_kwh": round(fed_in_kwh, 1),
                 "electricity_savings_eur": round(annual_electricity_savings, 2),
                 "feed_in_income_eur": round(feed_in_income, 2),
+                "electricity_rate_eur_per_kwh": round(electricity_rate, 3),
                 "incentives": incentives,
                 "location_factors": location_factors,
                 "scaling_info": scaling_info,

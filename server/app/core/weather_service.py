@@ -49,14 +49,17 @@ class WeatherAnalysisService:
         latest_temperature = self.dwd_fetcher.get_latest_temperature(lat, lon)
         
         if latest_irradiance:
-            # Current month seasonal factor
-            seasonal_factor = self._get_current_seasonal_factor(lat, lon)
-            adjusted_irradiance = latest_irradiance * seasonal_factor
+            # For latest analysis, use the base irradiance without additional seasonal adjustment
+            # The latest_irradiance already includes seasonal effects from DWD fallback
+            
+            # Get seasonal variations for monthly calculations
+            seasonal_variations = self._get_default_seasonal_pattern(lat, lon)
             
             return {
-                "daily_irradiance_kwh_m2": adjusted_irradiance,
+                "daily_irradiance_kwh_m2": latest_irradiance,  # Use direct value, no extra seasonal factor
                 "temperature_celsius": latest_temperature or 15.0,
-                "seasonal_factor": seasonal_factor,
+                "seasonal_factor": 1.0,  # No additional seasonal adjustment
+                "seasonal_variations": seasonal_variations,
                 "data_source": "DWD_latest",
                 "analysis_date": datetime.now().isoformat()
             }
@@ -65,7 +68,7 @@ class WeatherAnalysisService:
             return self._get_regional_fallback(lat, lon)
 
     def _get_historical_analysis(self, lat: float, lon: float) -> Dict:
-        """Historical data analysis (multi-year average) - NO CACHING"""
+        """Historical data analysis using EDA 2012-2017 data"""
         print("Analyzing long-term historical patterns...")
         
         # Check if DWD fetcher has historical methods (backwards compatibility)
@@ -77,7 +80,8 @@ class WeatherAnalysisService:
             historical_irradiance = self.dwd_fetcher.get_historical_irradiance(lat, lon, years=5)
             historical_temperature = self.dwd_fetcher.get_historical_temperature(lat, lon, years=5)
         else:
-            print("Historical methods not available - using regional patterns")
+            print("Historical methods not available - using EDA data 2012-2017")
+            historical_irradiance, historical_temperature = self._extract_eda_historical_data(lat, lon)
         
         if historical_irradiance:
             irradiance = historical_irradiance["overall_average"]
@@ -97,7 +101,7 @@ class WeatherAnalysisService:
             "daily_irradiance_kwh_m2": irradiance,
             "temperature_celsius": temperature,
             "seasonal_variations": seasonal_variations,
-            "data_source": "DWD_historical" if historical_irradiance else "regional_patterns",
+            "data_source": "EDA_2012_2017" if historical_irradiance else "regional_patterns",
             "analysis_date": datetime.now().isoformat()
         }
 
@@ -113,11 +117,15 @@ class WeatherAnalysisService:
         hybrid_temperature = (latest["temperature_celsius"] * 0.3 + 
                             historical["temperature_celsius"] * 0.7)
         
+        # Show data source composition
+        historical_source = historical.get("data_source", "unknown")
+        hybrid_source = f"hybrid_30pct_recent_70pct_{historical_source}"
+        
         return {
             "daily_irradiance_kwh_m2": hybrid_irradiance,
             "temperature_celsius": hybrid_temperature,
             "seasonal_variations": historical.get("seasonal_variations", {}),
-            "data_source": "hybrid_analysis",
+            "data_source": hybrid_source,
             "analysis_date": datetime.now().isoformat(),
             "weighting": {"recent": 0.3, "historical": 0.7}
         }
@@ -199,6 +207,78 @@ class WeatherAnalysisService:
         seasonal_pattern = self._get_default_seasonal_pattern(lat, lon)
         annual_average = sum(seasonal_pattern.values()) / 12
         return round(seasonal_pattern[str(current_month)] / annual_average, 2)
+
+    def _extract_eda_historical_data(self, lat: float, lon: float) -> tuple:
+        """Extract historical solar irradiance and temperature from EDA 2012-2017 data"""
+        try:
+            import pandas as pd
+            import os
+            
+            # Path to EDA data
+            eda_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed_eda_data', 'renewable_weather.csv')
+            
+            if not os.path.exists(eda_path):
+                print(f"EDA data not found at {eda_path}")
+                return None, None
+                
+            print(f"Loading EDA historical data from {eda_path}")
+            df = pd.read_csv(eda_path)
+            
+            # Check actual column names
+            print(f"EDA columns: {list(df.columns)}")
+            
+            # Convert Date column to datetime
+            df['Date'] = pd.to_datetime(df['Date'], format='%d-%m-%Y', errors='coerce')
+            
+            # Filter to 2012-2017 reliable period
+            df_filtered = df[(df['Date'].dt.year >= 2012) & (df['Date'].dt.year <= 2017)]
+            
+            print(f"EDA data: {len(df_filtered)} records from 2012-2017")
+            
+            if len(df_filtered) == 0:
+                print("No EDA data in 2012-2017 range")
+                return None, None
+            
+            # Calculate overall averages using actual column names
+            solar_avg = df_filtered['Solar'].mean() if 'Solar' in df_filtered else None
+            temp_avg = df_filtered['temperature_air_mean_2m_germany_avg'].mean() if 'temperature_air_mean_2m_germany_avg' in df_filtered else None
+            
+            # Calculate monthly patterns
+            monthly_solar = {}
+            if 'Solar' in df_filtered.columns:
+                df_filtered['month'] = df_filtered['Date'].dt.month
+                monthly_averages = df_filtered.groupby('month')['Solar'].mean()
+                for month in range(1, 13):
+                    monthly_solar[str(month)] = monthly_averages.get(month, solar_avg)
+            
+            # Convert solar from original units to daily irradiance
+            # EDA Solar is in GWh, convert to kWh/m2 daily irradiance for German conditions
+            # Approximate conversion: 1 GWh = 4.2 kWh/m2 daily for Germany
+            if solar_avg:
+                daily_irradiance = solar_avg * 4.2 / 1000  # Convert GWh to kWh/m2
+                
+                historical_irradiance = {
+                    "overall_average": daily_irradiance,
+                    "monthly_averages": {k: v * 4.2 / 1000 for k, v in monthly_solar.items()}
+                }
+                print(f"EDA extraction: Solar={solar_avg:.1f} GWh -> Irradiance={daily_irradiance:.3f} kWh/m²")
+            else:
+                historical_irradiance = None
+                print("No solar data available in EDA dataset")
+            
+            if temp_avg:
+                historical_temperature = {"overall_average": temp_avg}
+                print(f"Temperature: {temp_avg:.1f}°C")
+            else:
+                historical_temperature = None
+                print("No temperature data available in EDA dataset")
+            return historical_irradiance, historical_temperature
+            
+        except Exception as e:
+            print(f"Error extracting EDA data: {e}")
+            import traceback
+            traceback.print_exc()
+            return None, None
 
     # Caching methods removed - no caching for fresh data
     

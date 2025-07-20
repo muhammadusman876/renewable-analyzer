@@ -88,6 +88,20 @@ async def analyze_solar_potential(request: AnalysisRequest, data_source: str = "
             request.location
         )
         
+        # Update solar output with scaled values if system was scaled due to budget
+        scaling_info = financial_analysis_dict.get("scaling_info", {})
+        if scaling_info.get("system_scaled", False):
+            scaling_factor = scaling_info.get("scaling_factor", 1.0)
+            # Update solar output to reflect the actually affordable system
+            solar_output["annual_kwh"] = scaling_info.get("scaled_annual_kwh", solar_output["annual_kwh"])
+            solar_output["system_capacity_kw"] = scaling_info.get("scaled_capacity_kw", solar_output["system_capacity_kw"])
+            solar_output["daily_average"] = round(solar_output["annual_kwh"] / 365, 2)
+            # Scale monthly production proportionally
+            solar_output["monthly_production"] = [round(month * scaling_factor, 2) for month in solar_output["monthly_production"]]
+            solar_output["peak_month_production"] = max(solar_output["monthly_production"])
+            # Recalculate capacity factor
+            solar_output["capacity_factor"] = round((solar_output["annual_kwh"] / (solar_output["system_capacity_kw"] * 8760)) * 100, 1)
+        
         # 3. Generate AI-powered feasibility report
         rag_system = EnergyRAGSystem()
         report = await rag_system.generate_feasibility_report(
