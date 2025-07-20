@@ -52,6 +52,7 @@ const Home: React.FC = () => {
                     orientation: data.orientation,
                     weather_analysis: data.weatherAnalysis,
                     budget: data.budget,
+                    household_consumption: data.annualConsumption,
                 }),
             });
 

@@ -85,7 +85,8 @@ async def analyze_solar_potential(request: AnalysisRequest, data_source: str = "
         financial_analysis_dict = roi_calc.calculate_roi(
             solar_output, 
             request.budget, 
-            request.location
+            request.location,
+            request.household_consumption
         )
         
         # Update solar output with scaled values if system was scaled due to budget
@@ -127,7 +128,11 @@ async def analyze_solar_potential(request: AnalysisRequest, data_source: str = "
             payback_period=financial_analysis_dict["payback_period"],
             roi_percentage=financial_analysis_dict["roi_percentage"],
             total_investment=financial_analysis_dict["total_investment"],
-            co2_reduction=financial_analysis_dict["co2_reduction"]
+            co2_reduction=financial_analysis_dict["co2_reduction"],
+            self_consumption_rate=financial_analysis_dict.get("self_consumption_rate"),
+            self_consumed_kwh=financial_analysis_dict.get("self_consumed_kwh"),
+            fed_in_kwh=financial_analysis_dict.get("fed_in_kwh"),
+            household_coverage=financial_analysis_dict.get("household_coverage")
         )
 
         return AnalysisResponse(
@@ -280,7 +285,8 @@ async def analyze_solar_potential_enhanced(request: EnhancedAnalysisRequest):
         financial_analysis = roi_calc.calculate_roi(
             solar_output=solar_output_dict,
             budget=request.budget,
-            location=request.location or "Germany"
+            location=request.location or "Germany",
+            household_consumption=request.household_consumption
         )
         
         # Generate AI report using RAG system
@@ -316,7 +322,11 @@ async def analyze_solar_potential_enhanced(request: EnhancedAnalysisRequest):
             payback_period=financial_analysis["payback_period"],
             roi_percentage=financial_analysis["roi_percentage"],
             total_investment=financial_analysis["total_investment"],
-            co2_reduction=financial_analysis["co2_reduction"]
+            co2_reduction=financial_analysis["co2_reduction"],
+            self_consumption_rate=financial_analysis.get("self_consumption_rate"),
+            self_consumed_kwh=financial_analysis.get("self_consumed_kwh"),
+            fed_in_kwh=financial_analysis.get("fed_in_kwh"),
+            household_coverage=financial_analysis.get("household_coverage")
         )
         
         # Determine location string and coordinates

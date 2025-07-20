@@ -26,6 +26,51 @@ class ROICalculator:
         }
         return location_factors.get(location, {"incentive_multiplier": 1.0, "grid_cost": 0.30})
 
+    def calculate_self_consumption_rate(self, solar_production_kwh: float, household_consumption_kwh: Optional[float]) -> Dict:
+        """Calculate realistic self-consumption rate based on household usage patterns"""
+        if not household_consumption_kwh or household_consumption_kwh <= 0:
+            # Default German household average
+            return {
+                "self_consumption_rate": 0.40,
+                "method": "default_average",
+                "household_coverage": None
+            }
+        
+        # Calculate raw self-consumption potential
+        if household_consumption_kwh <= solar_production_kwh:
+            # Household consumes less than solar produces
+            raw_self_consumption = household_consumption_kwh / solar_production_kwh
+            household_coverage = 100.0  # Solar covers 100% of consumption
+        else:
+            # Household consumes more than solar produces
+            raw_self_consumption = 1.0  # All solar production is self-consumed
+            household_coverage = (solar_production_kwh / household_consumption_kwh) * 100
+        
+        # Apply realistic behavior factors:
+        # - Time-of-use mismatch (solar peak vs consumption peak)
+        # - Seasonal variations (winter consumption vs summer production)
+        # - Typical German household consumption patterns
+        
+        if raw_self_consumption >= 0.8:
+            # High self-consumption potential - apply modest adjustment
+            adjusted_rate = raw_self_consumption * 0.85
+        elif raw_self_consumption >= 0.5:
+            # Medium self-consumption - standard adjustment
+            adjusted_rate = raw_self_consumption * 0.80
+        else:
+            # Low self-consumption - minimal adjustment
+            adjusted_rate = raw_self_consumption * 0.90
+        
+        # Cap realistic self-consumption at 95% (some export always occurs)
+        final_rate = min(0.95, max(0.20, adjusted_rate))
+        
+        return {
+            "self_consumption_rate": round(final_rate, 3),
+            "method": "household_based",
+            "household_coverage": round(household_coverage, 1) if household_coverage is not None else None,
+            "raw_rate": round(raw_self_consumption, 3)
+        }
+
     def calculate_german_incentives(self, system_capacity_kw: float, location: str) -> Dict:
         """Calculate German solar incentives"""
         location_factors = self.get_location_specific_factors(location)
@@ -67,8 +112,8 @@ class ROICalculator:
             "lifetime_savings_eur": round(sum(cash_flows[1:]), 2)
         }
 
-    def calculate_roi(self, solar_output: Dict, budget: Optional[float], location: str) -> Dict:
-        """Enhanced ROI calculation with budget constraints and system scaling"""
+    def calculate_roi(self, solar_output: Dict, budget: Optional[float], location: str, household_consumption: Optional[float] = None) -> Dict:
+        """Enhanced ROI calculation with budget constraints, system scaling, and household consumption analysis"""
         try:
             annual_kwh = solar_output.get("annual_kwh", 0)
             system_capacity_kw = solar_output.get("system_capacity_kw", 0)
@@ -104,11 +149,10 @@ class ROICalculator:
             
             electricity_rate = get_electricity_price()
             
-            # Realistic German household solar consumption pattern:
-            # - 40% self-consumed (saves full electricity rate)
-            # - 60% fed into grid (earns feed-in tariff)
-            self_consumption_rate = 0.40
-            feed_in_rate = 0.60
+            # Calculate self-consumption based on household usage patterns
+            consumption_analysis = self.calculate_self_consumption_rate(annual_kwh, household_consumption)
+            self_consumption_rate = consumption_analysis["self_consumption_rate"]
+            feed_in_rate = 1.0 - self_consumption_rate
             
             # Calculate direct electricity savings (self-consumed portion)
             self_consumed_kwh = annual_kwh * self_consumption_rate
@@ -129,15 +173,19 @@ class ROICalculator:
             roi_percentage = ((annual_savings * self.system_lifetime) - total_investment) / total_investment * 100
             financial_metrics = self.calculate_npv_and_irr(annual_savings, total_investment, system_capacity_kw)
             
-            co2_reduction_kg_per_year = annual_kwh * 0.485
-            co2_reduction_tons_lifetime = (co2_reduction_kg_per_year * self.system_lifetime) / 1000
+            # CO₂ reduction calculation with correct German grid carbon factor
+            # German grid carbon factor: 0.401 kg CO₂/kWh (2023 data)
+            co2_reduction_kg_per_year = annual_kwh * 0.401  # kg CO₂ per year
+            co2_reduction_tons_per_year = co2_reduction_kg_per_year / 1000  # Convert to tons per year
+            co2_reduction_tons_lifetime = co2_reduction_tons_per_year * self.system_lifetime
             
             return {
                 "annual_savings": round(annual_savings, 2),
                 "payback_period": round(payback_period, 1),
                 "roi_percentage": round(roi_percentage, 1),
                 "total_investment": round(total_investment, 2),
-                "co2_reduction": round(co2_reduction_tons_lifetime, 1),
+                "co2_reduction": round(co2_reduction_tons_per_year, 2),  # Annual CO₂ reduction in tons
+                "co2_reduction_lifetime": round(co2_reduction_tons_lifetime, 1),  # 25-year lifetime reduction
                 "system_capacity_kw": round(system_capacity_kw, 2),
                 "annual_kwh_adjusted": round(annual_kwh, 1),
                 "self_consumed_kwh": round(self_consumed_kwh, 1),
@@ -145,6 +193,9 @@ class ROICalculator:
                 "electricity_savings_eur": round(annual_electricity_savings, 2),
                 "feed_in_income_eur": round(feed_in_income, 2),
                 "electricity_rate_eur_per_kwh": round(electricity_rate, 3),
+                "self_consumption_rate": round(self_consumption_rate * 100, 1),  # Convert to percentage
+                "household_coverage": consumption_analysis.get("household_coverage"),
+                "consumption_analysis": consumption_analysis,
                 "incentives": incentives,
                 "location_factors": location_factors,
                 "scaling_info": scaling_info,

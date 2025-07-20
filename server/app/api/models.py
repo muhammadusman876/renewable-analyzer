@@ -8,6 +8,7 @@ class AnalysisRequest(BaseModel):
     orientation: str = Field(default="south", description="Roof orientation (north, south, east, west)")
     weather_analysis: str = Field(default="hybrid", description="Weather analysis type: latest (30 days), historical (5+ years), or hybrid (recommended)")
     budget: Optional[float] = Field(None, gt=0, description="Available budget in EUR")
+    household_consumption: Optional[float] = Field(None, gt=0, description="Annual household energy consumption in kWh")
 
 class EnhancedAnalysisRequest(BaseModel):
     """Enhanced request model with weather analysis options"""
@@ -18,6 +19,7 @@ class EnhancedAnalysisRequest(BaseModel):
     orientation: str = Field(default="south", description="Roof orientation")
     weather_analysis: str = Field(default="hybrid", description="Weather analysis type: latest, historical, or hybrid")
     budget: Optional[float] = Field(None, gt=0, description="Available budget in EUR")
+    household_consumption: Optional[float] = Field(None, gt=0, description="Annual household energy consumption in kWh")
 
 class EnhancedSolarPotential(BaseModel):
     """Enhanced solar potential with weather analysis"""
@@ -45,6 +47,10 @@ class FinancialAnalysis(BaseModel):
     roi_percentage: float = Field(..., description="Return on investment percentage")
     total_investment: float = Field(..., description="Total investment required in EUR")
     co2_reduction: float = Field(..., description="Annual CO2 reduction in tons")
+    self_consumption_rate: Optional[float] = Field(None, description="Self-consumption rate percentage")
+    self_consumed_kwh: Optional[float] = Field(None, description="Self-consumed energy in kWh")
+    fed_in_kwh: Optional[float] = Field(None, description="Fed into grid energy in kWh")
+    household_coverage: Optional[float] = Field(None, description="Percentage of household consumption covered by solar")
 
 class EnhancedAnalysisResponse(BaseModel):
     """Enhanced analysis response with weather integration"""
