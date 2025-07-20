@@ -1,0 +1,21 @@
+{
+  "name": "renewable-analyzer-server",
+  "version": "1.0.0",
+  "description": "FastAPI backend for Renewable Energy Investment Analyzer",
+  "scripts": {
+    "start": "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "dev": "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "test": "python -m pytest tests/",
+    "setup": "python setup_check.py",
+    "demo": "python demo.py"
+  },
+  "keywords": [
+    "renewable-energy",
+    "solar",
+    "investment",
+    "fastapi",
+    "ai"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

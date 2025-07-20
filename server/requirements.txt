@@ -1,0 +1,38 @@
+
+# Core Backend Dependencies
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
+
+# Data Processing
+pandas
+numpy
+scikit-learn
+
+# AI/ML Dependencies (for RAG and LLM)
+groq
+faiss-cpu
+sentence-transformers
+python-dotenv
+
+# Minimal LangChain for vector operations
+langchain-community
+langchain-text-splitters
+
+# Weather API
+requests
+wetterdienst
+geopy
+
+
+# Development Dependencies
+python-dotenv
+pytest
+black
+flake8
+
+# Optional: For vector database and embeddings
+# chromadb==0.4.18
+# tiktoken==0.5.1
+
