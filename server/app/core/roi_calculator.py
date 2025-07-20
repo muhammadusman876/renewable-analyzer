@@ -11,11 +11,11 @@ class ROICalculator:
     """Calculate ROI, payback period, and financial metrics for solar installations"""
     
     def __init__(self):
-        self.system_cost_per_kw = 1500  # Euro per kW installed capacity
-        self.maintenance_cost_per_year = 100  # Euro per year
+        self.system_cost_per_kw = 1800  # Euro per kW installed capacity (realistic 2025 prices)
+        self.maintenance_cost_per_year = 200  # Euro per year (insurance, cleaning, monitoring)
         self.system_lifetime = 25  # years
         self.degradation_rate = 0.005  # 0.5% per year
-        self.discount_rate = 0.03  # 3% discount rate
+        self.discount_rate = 0.04  # 4% discount rate
         
     def get_location_specific_factors(self, location: str) -> Dict:
         """Get location-specific factors for Germany"""
@@ -104,7 +104,9 @@ class ROICalculator:
             
             electricity_rate = get_electricity_price()
             annual_electricity_savings = annual_kwh * electricity_rate
-            feed_in_income = (annual_kwh * 0.5) * incentives["feed_in_tariff_eur_per_kwh"]
+            # More realistic: only 20-30% of production is typically fed into grid for household systems
+            feed_in_percentage = 0.25  # 25% of production fed back to grid
+            feed_in_income = (annual_kwh * feed_in_percentage) * incentives["feed_in_tariff_eur_per_kwh"]
             annual_savings = annual_electricity_savings + feed_in_income
             
             if annual_savings > 0:

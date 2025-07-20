@@ -1,4 +1,7 @@
 {
   "electricity_price_eur_per_kwh": 0.367675,
-  "last_updated": "2025-07-20T15:59:45.761158Z"
+  "last_updated": "2025-07-20T15:59:45.761158Z",
+  "fallback_price_eur_per_kwh": 0.34,
+  "feed_in_tariff_eur_per_kwh": 0.082,
+  "description": "German electricity and feed-in prices for 2025"
 }

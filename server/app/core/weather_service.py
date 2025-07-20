@@ -68,10 +68,16 @@ class WeatherAnalysisService:
         """Historical data analysis (multi-year average) - NO CACHING"""
         print("Analyzing long-term historical patterns...")
         
-        # ALWAYS fetch fresh data - no caching
-        print("Fetching fresh historical data (no cache)")
-        historical_irradiance = self.dwd_fetcher.get_historical_irradiance(lat, lon, years=5)
-        historical_temperature = self.dwd_fetcher.get_historical_temperature(lat, lon, years=5)
+        # Check if DWD fetcher has historical methods (backwards compatibility)
+        historical_irradiance = None
+        historical_temperature = None
+        
+        if hasattr(self.dwd_fetcher, 'get_historical_irradiance'):
+            print("Fetching fresh historical data (no cache)")
+            historical_irradiance = self.dwd_fetcher.get_historical_irradiance(lat, lon, years=5)
+            historical_temperature = self.dwd_fetcher.get_historical_temperature(lat, lon, years=5)
+        else:
+            print("Historical methods not available - using regional patterns")
         
         if historical_irradiance:
             irradiance = historical_irradiance["overall_average"]
