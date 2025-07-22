@@ -43,7 +43,8 @@ const Home: React.FC = () => {
         setSolarData(data);
         try {
             // Call backend for solar calculation with new weather_analysis parameter
-            const res = await fetch('/api/analyze', {
+            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+            const res = await fetch(`${API_BASE_URL}/api/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
