@@ -16,8 +16,11 @@ faiss-cpu
 sentence-transformers
 python-dotenv
 
-# Minimal LangChain for vector operations
+# LangChain for structured LLM interactions
+langchain
+langchain-groq
 langchain-community
+langchain-core
 langchain-text-splitters
 
 # Weather API
