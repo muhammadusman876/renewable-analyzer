@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
+import os
 
 app = FastAPI(
  title="Renewable Energy Investment Analyzer",
@@ -8,10 +9,23 @@ app = FastAPI(
  version="1.0.0"
 )
 
+# CORS configuration - allows both local development and production
+ALLOWED_ORIGINS = [
+    "http://localhost:3000", 
+    "http://127.0.0.1:3000",
+    "https://renewable-analyzer.vercel.app",
+    "https://renewable-analyzer-fawphiwxq-muhammadusman876s-projects.vercel.app",
+]
+
+# Add custom origins from environment variable if provided
+custom_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+if custom_origins and custom_origins[0]:  # Check if not empty
+    ALLOWED_ORIGINS.extend([origin.strip() for origin in custom_origins])
+
 # CORS middleware for frontend communication
 app.add_middleware(
  CORSMiddleware,
- allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://renewable-analyzer.vercel.app/"],
+ allow_origins=ALLOWED_ORIGINS,
  allow_credentials=True,
  allow_methods=["*"],
  allow_headers=["*"],
